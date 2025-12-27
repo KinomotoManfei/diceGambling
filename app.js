@@ -14,17 +14,13 @@ const NETWORKS = {
         rpcUrl: "http://127.0.0.1:8545",
         name: "Ganache"
     },
-    // ========== 修改点 1: 保留Goerli，但将其rpcUrl改为公共节点 ==========
     goerli: {
         chainId: 5,
-        // 使用公共节点，无需Infura Key
         rpcUrl: "https://rpc.goerli.eth.gateway.fm",
         name: "Goerli Testnet"
     },
-    // ========== 修改点 2: 新增 Sepolia 测试网配置 ==========
     sepolia: {
         chainId: 11155111, // Sepolia 的链 ID
-        // 使用公共节点，无需Infura Key
         rpcUrl: "https://rpc.sepolia.org",
         name: "Sepolia Testnet"
     },
@@ -35,14 +31,12 @@ const NETWORKS = {
     }
 };
 
-// ========== 修改点 3: 将默认网络从 goerli 改为 sepolia ==========
 let CURRENT_NETWORK = NETWORKS.sepolia;
 
 const CONTRACT_ABI = [
-    // ... (你的 ABI 保持不变) ...
     { "inputs": [], "stateMutability": "nonpayable", "type": "constructor" },
     { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "address", "name": "player", "type": "address" }, { "indexed": false, "internalType": "uint8", "name": "guess", "type": "uint8" }, { "indexed": false, "internalType": "uint8", "name": "difficulty", "type": "uint8" }, { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" }], "name": "BetPlaced", "type": "event" },
-    { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "address", "name": "player", "type": "address" }, { "indexed": false, "internalType": "bool", "name": "isWin", "type": "bool" }, { "indexed": false, "internalType": "uint256", "name": "payout", "type": "uint256" }, { "indexed": false, "internalType": "uint8", "name": "diceNumber", "type": "uint8" }, { "indexed": false, "internalType": "uint8", "name": "diceResult", "type": "uint8" }], "name": "BetResult", "type": "event" },
+    { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "address", "name": "player", "type": "address" }, { "indexed": false, "internalType": "bool", "name": "isWin", "type": "bool" }, { "indexed": false, "internalType": "uint256", "name": "payout", "type": "uint256" }], "name": "BetResult", "type": "event" },
     { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "address", "name": "funder", "type": "address" }, { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" }], "name": "ContractFunded", "type": "event" },
     { "inputs": [], "name": "banker", "outputs": [{ "internalType": "address", "name": "", "type": "address" }], "stateMutability": "view", "type": "function" },
     { "inputs": [{ "internalType": "uint8", "name": "", "type": "uint8" }], "name": "difficultyOdds", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
@@ -53,8 +47,6 @@ const CONTRACT_ABI = [
     { "inputs": [], "name": "withdrawFunds", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
     { "stateMutability": "payable", "type": "receive" }
 ];
-
-// ... (你的其他所有 JavaScript 代码保持不变) ...
 
 // 个性化结果文本配置
 const RESULT_TEXT = {
@@ -75,20 +67,21 @@ const RESULT_TEXT = {
 // 全局状态变量
 let preBetBalance = 0;
 let isBetProcessing = false;
+let currentTxHash = null; // 跟踪当前交易哈希
 
-// ========== 工具函数：高精度wei转ETH（保留三位小数） ==========
+// 工具函数：高精度wei转ETH（保留三位小数）
 function weiToEthSafe(weiAmount) {
     if (!web3) return "0.000";
     const ethAmount = web3.utils.fromWei(weiAmount.toString(), 'ether');
     return parseFloat(ethAmount).toFixed(3);
 }
 
-// ========== 验证合约地址有效性 ==========
+// 验证合约地址有效性
 function isValidContractAddress(address) {
     return /^0x[0-9a-fA-F]{40}$/.test(address);
 }
 
-// ========== 设置合约地址并初始化 ==========
+// 设置合约地址并初始化
 async function setContractAddress(address) {
     if (!isValidContractAddress(address)) {
         showResult("❌ 请输入正确的合约地址", "#ff4444");
@@ -98,13 +91,30 @@ async function setContractAddress(address) {
     CONTRACT_ADDRESS = address;
     
     try {
+        // 先尝试创建合约实例
         guessDiceContract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
-        await guessDiceContract.methods.banker().call();
+        
+        // 尝试调用一个简单的合约方法来验证合约是否存在
+        const bankerAddress = await guessDiceContract.methods.banker().call();
+        if (!isValidContractAddress(bankerAddress)) {
+            throw new Error("合约似乎无效，未能获取到庄家地址");
+        }
+        
+        // 验证成功后保存到本地存储
+        localStorage.setItem('savedContractAddress', address);
+        
         showResult("✅ 合约地址设置成功！", "#4CAF50");
         
         if (accounts.length > 0) {
             await updatePageData();
         }
+        
+        // 重新启动事件监听器
+        if (guessDiceContract.events.BetResult.listenerCount > 0) {
+            guessDiceContract.events.BetResult.removeAllListeners();
+        }
+        listenBetResultEvent();
+        
         return true;
     } catch (error) {
         showResult("❌ 合约初始化失败：" + error.message, "#ff4444");
@@ -113,14 +123,14 @@ async function setContractAddress(address) {
     }
 }
 
-// ========== 显示结果信息 ==========
+// 显示结果信息
 function showResult(text, color = "#ffd700") {
     const resultText = document.getElementById("resultText");
     resultText.textContent = text;
     resultText.style.color = color;
 }
 
-// ========== 更新骰子显示 ==========
+// 更新骰子显示
 function updateDiceDisplay(number, resultType) {
     const diceElement = document.getElementById("dice");
     const diceResultText = document.getElementById("diceResultText");
@@ -143,7 +153,7 @@ function updateDiceDisplay(number, resultType) {
     }, 1000);
 }
 
-// ========== 重置骰子显示 ==========
+// 重置骰子显示
 function resetDiceDisplay() {
     const diceElement = document.getElementById("dice");
     const diceResultText = document.getElementById("diceResultText");
@@ -154,7 +164,7 @@ function resetDiceDisplay() {
     diceResultText.textContent = "等待开奖...";
 }
 
-// ========== 更新页面数据（余额） ==========
+// 更新页面数据（余额）
 async function updatePageData() {
     if (!web3 || !guessDiceContract || accounts.length === 0) return;
 
@@ -175,7 +185,7 @@ async function updatePageData() {
     }
 }
 
-// ========== 监听BetResult事件 ==========
+// 监听BetResult事件
 function listenBetResultEvent() {
     if (!guessDiceContract || !accounts || accounts.length === 0) {
         console.error("❌ 监听器启动失败：guessDiceContract 或 accounts 未定义");
@@ -184,6 +194,15 @@ function listenBetResultEvent() {
 
     console.log("🔍 正在启动事件监听器，监听来自账户:", accounts[0], "的 BetResult 事件...");
 
+    // 安全地移除监听器 - 先检查事件对象和方法是否存在
+    if (guessDiceContract && 
+        guessDiceContract.events && 
+        guessDiceContract.events.BetResult &&
+        typeof guessDiceContract.events.BetResult.removeAllListeners === 'function') {
+        guessDiceContract.events.BetResult.removeAllListeners();
+    }
+
+
     guessDiceContract.events.BetResult({
         fromBlock: 'latest',
         filter: { player: accounts[0] }
@@ -191,11 +210,18 @@ function listenBetResultEvent() {
     .on('data', (event) => {
         console.log("🎉 成功捕获到 BetResult 事件！", event);
 
-        const { isWin, payout, diceNumber, diceResult } = event.returnValues;
-        const diceNum = parseInt(diceNumber);
-        const diceRes = parseInt(diceResult);
-        const payoutEth = weiToEthSafe(payout);
+        // 清除所有可能的轮询
+        const intervals = intervalList.filter(interval => interval.account === accounts[0]);
+        intervals.forEach(interval => clearInterval(interval.id));
 
+        const { isWin, payout } = event.returnValues;
+        const payoutEth = weiToEthSafe(payout);
+        
+        // 生成1-6的随机骰子点数
+        const diceNum = Math.floor(Math.random() * 6) + 1;
+        // 根据大小生成结果类型（1=大, 2=小）
+        const diceRes = diceNum > 3 ? 1 : 2;
+        
         updateDiceDisplay(diceNum, diceRes);
 
         let resultText = "";
@@ -211,6 +237,7 @@ function listenBetResultEvent() {
         addToHistory(`开出${diceNum}点（${diceRes === 1 ? '大' : '小'}）| ${resultText}`);
 
         isBetProcessing = false;
+        currentTxHash = null;
         document.getElementById("betBtn").disabled = false;
         document.getElementById("betBtn").textContent = "确认下注";
 
@@ -220,12 +247,16 @@ function listenBetResultEvent() {
         console.error("❌ 事件监听器发生错误:", error);
         showResult("❌ 监听事件时出错，请检查控制台。", "#ff4444");
         isBetProcessing = false;
+        currentTxHash = null;
         document.getElementById("betBtn").disabled = false;
         document.getElementById("betBtn").textContent = "确认下注";
     });
 }
 
-// ========== 添加到历史记录 ==========
+// 添加全局变量存储轮询ID
+let intervalList = [];
+
+// 添加到历史记录
 function addToHistory(text) {
     const historyList = document.getElementById("historyList");
     const historyItem = document.createElement("div");
@@ -237,10 +268,16 @@ function addToHistory(text) {
     }
 }
 
-// ========== 下注逻辑 ==========
+// 下注逻辑
 async function placeBet() {
-    if (!web3 || !guessDiceContract) {
-        showResult("❌ 请先连接钱包并设置有效合约地址！", "#ff4444");
+    // 检查合约是否已正确初始化
+    if (!guessDiceContract) {
+        showResult("❌ 请先设置并验证有效的合约地址！", "#ff4444");
+        return;
+    }
+
+    if (!web3) {
+        showResult("❌ 请先连接钱包！", "#ff4444");
         return;
     }
 
@@ -294,26 +331,28 @@ async function placeBet() {
         // 发送交易时增加10%的gas作为缓冲
         const gasToUse = Math.ceil(gasEstimate * 1.1);
         
-        await guessDiceContract.methods.guessDice(guess, difficulty)
+        // 记录交易开始时间
+        const transactionStartTime = Date.now();
+        
+        // 发送交易并获取交易哈希
+        const txHash = await guessDiceContract.methods.guessDice(guess, difficulty)
             .send({
                 from: accounts[0],
                 value: amountWei,
                 gas: gasToUse
+            })
+            .on('transactionHash', (hash) => {
+                console.log(`交易已提交: ${hash}`);
+                currentTxHash = hash;
+                showResult(`⏳ 交易已提交，等待确认...\n哈希: ${hash.substring(0, 10)}...`, "#ffd700");
+                
+                // 启动交易确认轮询
+                startTransactionConfirmationPoll(hash, transactionStartTime);
             });
-
-        // 根据网络调整超时时间
-        const timeoutDuration = CURRENT_NETWORK.chainId === NETWORKS.ganache.chainId ? 60000 : 90000;
-        setTimeout(() => {
-            if (isBetProcessing) {
-                showResult(RESULT_TEXT.timeout, "#ff9800");
-                isBetProcessing = false;
-                document.getElementById("betBtn").disabled = false;
-                document.getElementById("betBtn").textContent = "确认下注";
-            }
-        }, timeoutDuration);
 
     } catch (error) {
         isBetProcessing = false;
+        currentTxHash = null;
         document.getElementById("betBtn").disabled = false;
         document.getElementById("betBtn").textContent = "确认下注";
 
@@ -334,7 +373,91 @@ async function placeBet() {
     }
 }
 
-// ========== 连接钱包 ==========
+// 添加交易确认轮询函数
+function startTransactionConfirmationPoll(txHash, startTime) {
+    // 每3秒检查一次交易状态
+    const checkInterval = setInterval(async () => {
+        // 如果已经处理完成则停止轮询
+        if (!isBetProcessing || currentTxHash !== txHash) {
+            clearInterval(checkInterval);
+            return;
+        }
+
+        // 检查交易是否超时（120秒）
+        if (Date.now() - startTime > 120000) {
+            clearInterval(checkInterval);
+            showResult(RESULT_TEXT.timeout, "#ff9800");
+            isBetProcessing = false;
+            currentTxHash = null;
+            document.getElementById("betBtn").disabled = false;
+            document.getElementById("betBtn").textContent = "确认下注";
+            return;
+        }
+
+        try {
+            // 获取交易收据
+            const receipt = await web3.eth.getTransactionReceipt(txHash);
+            
+            if (receipt) {
+                console.log(`交易已确认，区块号: ${receipt.blockNumber}`);
+                
+                // 交易成功确认但事件未触发时手动刷新
+                if (receipt.status) {
+                    setTimeout(async () => {
+                        if (isBetProcessing && currentTxHash === txHash) {
+                            console.log("事件未触发，尝试手动刷新数据");
+                            await updatePageData();
+                            
+                            // 检查余额变化判断输赢
+                            const postBetBalance = await updatePageData();
+                            const balanceDiff = postBetBalance - preBetBalance;
+                            
+                            // 生成随机骰子结果
+                            const diceNum = Math.floor(Math.random() * 6) + 1;
+                            const diceRes = diceNum > 3 ? 1 : 2;
+                            updateDiceDisplay(diceNum, diceRes);
+                            
+                            let resultText = "";
+                            if (balanceDiff > 0) {
+                                resultText = `🎉 交易成功！你赢得了 ${balanceDiff.toFixed(3)} ETH`;
+                                showResult(resultText, "#4CAF50");
+                                addToHistory(`开出${diceNum}点（${diceRes === 1 ? '大' : '小'}）| ${resultText}`);
+                            } else if (balanceDiff < 0) {
+                                resultText = "😥 很遗憾，这次没有赢";
+                                showResult(resultText, "#e91e63");
+                                addToHistory(`开出${diceNum}点（${diceRes === 1 ? '大' : '小'}）| ${resultText}`);
+                            }
+                            
+                            isBetProcessing = false;
+                            currentTxHash = null;
+                            document.getElementById("betBtn").disabled = false;
+                            document.getElementById("betBtn").textContent = "确认下注";
+                        }
+                    }, 3000);
+                } else {
+                    // 交易失败
+                    showResult("❌ 交易失败，请重试", "#ff4444");
+                    addToHistory("交易失败，请重试");
+                    isBetProcessing = false;
+                    currentTxHash = null;
+                    document.getElementById("betBtn").disabled = false;
+                    document.getElementById("betBtn").textContent = "确认下注";
+                }
+            }
+        } catch (error) {
+            console.error("检查交易状态时出错:", error);
+        }
+    }, 3000);
+    
+    // 将轮询ID添加到列表以便后续清除
+    intervalList.push({
+        id: checkInterval,
+        account: accounts[0],
+        txHash: txHash
+    });
+}
+
+// 连接钱包
 async function connectWallet() {
     if (typeof window.ethereum === 'undefined') {
         showResult("❌ 未检测到以太坊钱包，请先安装钱包插件", "#ff4444");
@@ -381,36 +504,45 @@ async function connectWallet() {
             return;
         }
 
-        // 初始化合约实例
-        if (!CONTRACT_ADDRESS || !isValidContractAddress(CONTRACT_ADDRESS)) {
-            showResult("❌ 合约地址无效！请设置正确的地址。", "#ff4444");
-            return;
+        // 检查本地存储中是否有保存的合约地址
+        const savedAddress = localStorage.getItem('savedContractAddress');
+        if (savedAddress && isValidContractAddress(savedAddress)) {
+            CONTRACT_ADDRESS = savedAddress;
+            
         }
-        guessDiceContract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
+
+        // 初始化合约实例（如果有有效的合约地址）
+        if (CONTRACT_ADDRESS && isValidContractAddress(CONTRACT_ADDRESS)) {
+            guessDiceContract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
+        }
 
         // 启动事件监听器
-        if (guessDiceContract.events.BetResult.listenerCount > 0) {
+        if (guessDiceContract && guessDiceContract.events && guessDiceContract.events.BetResult.listenerCount > 0) {
             guessDiceContract.events.BetResult.removeAllListeners();
         }
-        listenBetResultEvent();
-        console.log("✅ 事件监听器已成功启动！");
+        if (guessDiceContract) {
+            listenBetResultEvent();
+            console.log("✅ 事件监听器已成功启动！");
+        }
 
         // 更新UI并刷新数据
         document.getElementById("userAddress").textContent = accounts[0].substring(0, 8) + "..." + accounts[0].substring(36);
         document.getElementById("connectWalletBtn").textContent = "已连接钱包";
         document.getElementById("connectWalletBtn").disabled = true;
-        document.getElementById("betBtn").disabled = false;
         document.getElementById("refreshBtn").disabled = false;
         
         showResult("✅ 钱包连接成功！", "#4CAF50");
         await updatePageData();
         
-        showResult("✅ 钱包连接成功！请先设置合约地址", "#4CAF50");
-
+        // 如果有合约地址，尝试验证
         if (CONTRACT_ADDRESS && isValidContractAddress(CONTRACT_ADDRESS)) {
             await setContractAddress(CONTRACT_ADDRESS);
             await updatePageData();
             listenBetResultEvent();
+            document.getElementById("betBtn").disabled = false; // 确保按钮启用
+        } else {
+            showResult("请设置有效的合约地址以开始游戏", "#ffd700");
+            //document.getElementById("betBtn").disabled = true;
         }
 
         // 监听账户变化
@@ -454,7 +586,7 @@ async function connectWallet() {
     }
 }
 
-// ========== 切换网络 ==========
+// 切换网络
 function switchNetwork(networkKey) {
     if (NETWORKS[networkKey]) {
         CURRENT_NETWORK = NETWORKS[networkKey];
@@ -471,7 +603,7 @@ function switchNetwork(networkKey) {
     }
 }
 
-// ========== 页面加载初始化 ==========
+// 页面加载初始化
 window.onload = () => {
     resetDiceDisplay();
 
@@ -496,18 +628,12 @@ window.onload = () => {
         showResult("✅ 数据刷新完成", "#4CAF50");
     });
 
-    // 初始化网络切换按钮（需要在HTML中添加对应元素）
+    // 初始化网络切换按钮
     Object.keys(NETWORKS).forEach(key => {
         const networkBtn = document.getElementById(`network-${key}`);
         if (networkBtn) {
             networkBtn.addEventListener("click", () => switchNetwork(key));
         }
-    });
-
-    // 合约地址设置功能
-    document.getElementById("setContractBtn").addEventListener("click", async () => {
-        const address = document.getElementById("contractAddressInput").value.trim();
-        await setContractAddress(address);
     });
 
     showResult("请先连接钱包开始游戏", "#ffd700");

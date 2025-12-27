@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>以太坊猜大小游戏</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- 引入Web3.js -->
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.8.2/dist/web3.min.js"></script>
+</head>
+<body>
+    <div class="casino-container">
+        <header class="casino-header">
+            <h1>🎲 以太坊猜大小</h1>
+            <p class="balance-info">合约余额：<span id="contractBalance">0.000</span> ETH</p>
+        </header>
+
+        <main class="game-area">
+            <!-- 钱包连接按钮 -->
+            <div class="wallet-connect">
+                <button id="connectWalletBtn" class="bet-btn">连接MetaMask钱包</button>
+            </div>
+
+            <!-- 用户地址和余额 -->
+            <div class="user-info">
+                <p>当前账户：<span id="userAddress">未连接钱包</span></p>
+                <p>账户余额：<span id="userBalance">0.000</span> ETH</p>
+            </div>
+
+            <!-- 下注区域 -->
+            <div class="bet-section">
+                <h2>选择难度与下注</h2>
+                <div class="difficulty-select">
+                    <label>难度：</label>
+                    <select id="difficulty">
+                        <option value="1">简单（胜率50%，赔率2倍）</option>
+                        <option value="2">中等（胜率45%，赔率2.1倍）</option>
+                        <option value="3">困难（胜率40%，赔率2.2倍）</option>
+                    </select>
+                </div>
+
+                <div class="guess-select">
+                    <label>猜大小：</label>
+                    <button class="guess-btn active" data-guess="1">大 🎲</button>
+                    <button class="guess-btn" data-guess="2">小 🎲</button>
+                </div>
+
+                <div class="amount-input">
+                    <label>下注金额（ETH）：</label>
+                    <input type="number" id="betAmount" min="0.001" step="0.001" placeholder="输入下注金额（精确到0.001）">
+                </div>
+
+                <button id="betBtn" class="bet-btn" disabled>确认下注</button>
+                <button id="refreshBtn" class="bet-btn" disabled>刷新数据</button>
+            </div>
+
+            <!-- 骰子结果可视化区域 -->
+            <div class="dice-display-area">
+                <h3>开奖结果</h3>
+                <!-- 骰子点数展示 -->
+                <div class="dice-container">
+                    <div id="dice" class="dice">0</div>
+                </div>
+                <!-- 大小结果 -->
+                <div id="diceResultText" class="dice-result-text">等待开奖...</div>
+            </div>
+
+            <!-- 游戏结果区域 -->
+            <div class="result-area">
+                <h3>游戏结果</h3>
+                <div id="resultText" class="result-text">请先连接钱包...</div>
+                <div id="historyList" class="history-list"></div>
+            </div>
+        </main>
+
+        <footer class="casino-footer">
+            <p>🎰 基于以太坊Ganache测试网(8545) | 所有金额精确到0.001 ETH | 仅供学习使用 🎰</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

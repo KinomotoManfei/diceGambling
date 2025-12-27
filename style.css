@@ -1,0 +1,323 @@
+/* 全局样式：赌场风格，增强视觉层次感 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Arial', sans-serif;
+}
+
+body {
+    background: linear-gradient(135deg, #1a2a6c, #b21f1f, #1a2a6c);
+    background-size: 400% 400%;
+    animation: gradientBG 15s ease infinite;
+    min-height: 100vh;
+    color: #fff;
+    padding: 20px;
+    line-height: 1.6;
+}
+
+@keyframes gradientBG {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* 容器样式增强 */
+.casino-container {
+    max-width: 800px;
+    margin: 0 auto;
+    background: rgba(0, 0, 0, 0.75);
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.4), 0 0 10px rgba(255, 215, 0, 0.2) inset;
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+/* 头部样式增强 */
+.casino-header {
+    text-align: center;
+    margin-bottom: 30px;
+    border-bottom: 2px solid #ffd700;
+    padding-bottom: 20px;
+    position: relative;
+}
+
+.casino-header h1 {
+    color: #ffd700;
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+}
+
+.balance-info {
+    font-size: 1.2rem;
+    color: #fff;
+}
+
+/* 钱包连接区域 */
+.wallet-connect {
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+/* 用户信息区域 */
+.user-info {
+    background: rgba(255, 215, 0, 0.1);
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    border: 1px solid rgba(255, 215, 0, 0.2);
+}
+
+.user-info p {
+    margin: 5px 0;
+    font-size: 1.1rem;
+}
+
+/* 游戏区域增强 */
+.game-area {
+    margin-bottom: 30px;
+}
+
+.bet-section {
+    background: rgba(0, 0, 0, 0.5);
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    border: 1px solid rgba(255, 215, 0, 0.15);
+}
+
+.bet-section h2 {
+    color: #ffd700;
+    margin-bottom: 15px;
+    font-size: 1.8rem;
+    text-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+}
+
+.difficulty-select, .guess-select, .amount-input {
+    margin-bottom: 15px;
+}
+
+.difficulty-select label, .guess-select label, .amount-input label {
+    display: inline-block;
+    width: 100px;
+    font-size: 1.1rem;
+}
+
+.difficulty-select select {
+    padding: 8px 15px;
+    border-radius: 5px;
+    background: #333;
+    color: #fff;
+    border: 1px solid #ffd700;
+    font-size: 1rem;
+    transition: border 0.3s ease;
+}
+
+.difficulty-select select:focus {
+    border-color: #ffc107;
+    outline: none;
+}
+
+.guess-btn {
+    padding: 10px 20px;
+    margin-right: 10px;
+    border: none;
+    border-radius: 5px;
+    background: #333;
+    color: #fff;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 1px solid transparent;
+}
+
+.guess-btn.active {
+    background: #ffd700;
+    color: #000;
+    font-weight: bold;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.guess-btn:hover:not(.active) {
+    background: #444;
+    border-color: #ffd700;
+}
+
+.amount-input input {
+    padding: 8px 15px;
+    border-radius: 5px;
+    background: #333;
+    color: #fff;
+    border: 1px solid #ffd700;
+    font-size: 1rem;
+    width: 200px;
+    transition: border 0.3s ease;
+}
+
+.amount-input input:focus {
+    border-color: #ffc107;
+    outline: none;
+}
+
+.bet-btn {
+    background: #ffd700;
+    color: #000;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 5px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-block;
+}
+
+.bet-btn:hover:not(:disabled) {
+    background: #ffc107;
+    transform: scale(1.05);
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+}
+
+.bet-btn:disabled {
+    background: #aaa;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* 骰子展示区域 - 核心新增样式 */
+.dice-display-area {
+    background: rgba(0, 0, 0, 0.5);
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    border: 1px solid rgba(255, 215, 0, 0.15);
+    text-align: center;
+}
+
+.dice-display-area h3 {
+    color: #ffd700;
+    margin-bottom: 20px;
+    font-size: 1.8rem;
+    text-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+}
+
+.dice-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 15px;
+}
+
+/* 骰子样式 - 模拟真实骰子外观 */
+.dice {
+    width: 120px;
+    height: 120px;
+    background: #fff;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    font-weight: bold;
+    color: #000;
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.6), inset 0 0 10px rgba(0,0,0,0.2);
+    border: 2px solid #ffd700;
+    transition: all 0.5s ease;
+}
+
+/* 骰子滚动动画 */
+@keyframes diceRoll {
+    0% { transform: rotate(0deg) scale(1); }
+    25% { transform: rotate(90deg) scale(1.1); }
+    50% { transform: rotate(180deg) scale(1); }
+    75% { transform: rotate(270deg) scale(1.1); }
+    100% { transform: rotate(360deg) scale(1); }
+}
+
+.dice.rolling {
+    animation: diceRoll 1s ease-in-out;
+}
+
+.dice-result-text {
+    font-size: 1.5rem;
+    color: #ffd700;
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+/* 结果区域增强 */
+.result-area {
+    background: rgba(0, 0, 0, 0.5);
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 215, 0, 0.15);
+}
+
+.result-area h3 {
+    color: #ffd700;
+    margin-bottom: 15px;
+    font-size: 1.8rem;
+    text-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+}
+
+.result-text {
+    font-size: 1.5rem;
+    margin-bottom: 15px;
+    min-height: 2rem;
+    padding: 10px;
+    border-radius: 5px;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.history-list {
+    max-height: 200px;
+    overflow-y: auto;
+    border-top: 1px solid #ffd700;
+    padding-top: 10px;
+}
+
+.history-list div {
+    margin: 5px 0;
+    padding: 8px;
+    background: rgba(255, 215, 0, 0.05);
+    border-radius: 5px;
+    transition: background 0.3s ease;
+}
+
+.history-list div:hover {
+    background: rgba(255, 215, 0, 0.1);
+}
+
+/* 页脚样式 */
+.casino-footer {
+    text-align: center;
+    border-top: 2px solid #ffd700;
+    padding-top: 20px;
+    color: #ccc;
+    margin-top: 20px;
+}
+
+/* 响应式适配 */
+@media (max-width: 600px) {
+    .dice {
+        width: 80px;
+        height: 80px;
+        font-size: 2rem;
+    }
+    
+    .casino-header h1 {
+        font-size: 2rem;
+    }
+    
+    .bet-btn {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    .guess-btn {
+        width: 100%;
+        margin-bottom: 5px;
+    }
+}

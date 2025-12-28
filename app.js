@@ -2,7 +2,7 @@
 let web3;
 let guessDiceContract;
 let accounts = [];
-
+let currentGuess = null; // 在全局变量中添加
 // 合约配置（部署时请替换为实际网络的合约地址）
 // ！！！重要：请确保这里是你部署在 Sepolia 测试网上的合约地址 ！！！
 let CONTRACT_ADDRESS = "0x262981f996557b30323d467a1eF51Ab2eBEcffcd";
@@ -207,7 +207,7 @@ function listenBetResultEvent() {
         fromBlock: 'latest',
         filter: { player: accounts[0] }
     })
-    .on('data', (event) => {
+    .once('data', (event) => {
         console.log("🎉 成功捕获到 BetResult 事件！", event);
 
         // 清除所有可能的轮询
@@ -216,11 +216,22 @@ function listenBetResultEvent() {
 
         const { isWin, payout } = event.returnValues;
         const payoutEth = weiToEthSafe(payout);
+        let diceRes, diceNum;
         
-        // 生成1-6的随机骰子点数
-        const diceNum = Math.floor(Math.random() * 6) + 1;
-        // 根据大小生成结果类型（1=大, 2=小）
-        const diceRes = diceNum > 3 ? 1 : 2;
+        if (isWin) {
+            // 赢了：骰子结果必须与用户猜测一致
+            diceRes = parseInt(currentGuess); // 1=大，2=小
+        } else {
+            // 输了：骰子结果必须与用户猜测相反
+            diceRes = currentGuess === "1" ? 2 : 1;
+        }
+
+        // 根据大小生成合理的点数（大：4-6，小：1-3）
+        if (diceRes === 1) {
+            diceNum = Math.floor(Math.random() * 3) + 4; // 大：4-6
+        } else {
+            diceNum = Math.floor(Math.random() * 3) + 1; // 小：1-3
+        }
         
         updateDiceDisplay(diceNum, diceRes);
 
@@ -312,6 +323,7 @@ async function placeBet() {
 
     const guess = activeGuessBtn.dataset.guess;
     const amountWei = web3.utils.toWei(betAmount.toString(), 'ether');
+    currentGuess = guess; // 记录当前下注时的猜测值
 
     isBetProcessing = true;
     document.getElementById("betBtn").disabled = true;
@@ -412,9 +424,22 @@ function startTransactionConfirmationPoll(txHash, startTime) {
                             const postBetBalance = await updatePageData();
                             const balanceDiff = postBetBalance - preBetBalance;
                             
-                            // 生成随机骰子结果
-                            const diceNum = Math.floor(Math.random() * 6) + 1;
-                            const diceRes = diceNum > 3 ? 1 : 2;
+                            // 新代码：根据余额状态和用户猜测生成匹配的骰子结果
+                            let diceRes, diceNum;
+                            if (balanceDiff > 0) {
+                                // 赢了：与用户猜测一致
+                                diceRes = parseInt(currentGuess);
+                            } else {
+                                // 输了：与用户猜测相反
+                                diceRes = currentGuess === "1" ? 2 : 1;
+                            }
+
+                            // 生成对应大小的点数
+                            if (diceRes === 1) {
+                                diceNum = Math.floor(Math.random() * 3) + 4; // 大：4-6
+                            } else {
+                                diceNum = Math.floor(Math.random() * 3) + 1; // 小：1-3
+                            }
                             updateDiceDisplay(diceNum, diceRes);
                             
                             let resultText = "";
